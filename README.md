@@ -79,6 +79,21 @@ your plan, and a repo link. Each person's plan limit lives in their own
 `config.json`, so the same widget works for Pro / Max (5x) / Max (20x) — just run
 **🎯 校準方案** once from the dropdown.
 
+### Desktop widget (macOS)
+
+Pin a usage card to your desktop (on the wallpaper) via
+[Übersicht](https://tracesof.net/uebersicht/):
+
+```bash
+./安裝桌面小工具.command
+```
+
+It installs Übersicht (Homebrew) if needed and drops in
+`ubersicht/claude-usage.widget` with your paths filled in — a glassy card with
+both gauges that refreshes every 5 minutes. Drag it anywhere via the Übersicht
+menu-bar icon. (`generate.py --json` is the data source if you want to build your
+own.)
+
 ### Status bar integration (Claude Code)
 
 `--oneline` prints `⛁ 5h 19% · 週 12% · 今日 $74.42`. Wire it into your Claude Code

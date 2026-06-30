@@ -826,6 +826,21 @@ def oneline(d):
     return f"⛁ 5h {b['pct']:.0f}% · 週 {w['pct']:.0f}% · 今日 {fmt_usd(d['today']['cost'])}"
 
 
+def json_output(d):
+    """精簡 JSON（給桌面 widget / 其他程式用）。"""
+    b, w = d["block"], d["week_block"]
+    print(json.dumps({
+        "plan": d.get("plan_name", ""),
+        "generated_at": d["generated_at"],
+        "block": {"pct": b["pct"], "used": b["used_cost"], "limit": b["limit"],
+                  "remain": b["remain"], "reset_in": b["reset_in"]},
+        "week": {"pct": w["pct"], "used": w["used_cost"], "limit": w["limit"],
+                 "remain": w["remain"], "reset_days": w["reset_days"]},
+        "today": d["today"]["cost"], "total": d["totals"]["cost"],
+        "tokens": d["totals"]["tokens"],
+    }, ensure_ascii=False))
+
+
 def swiftbar_output(d):
     """SwiftBar / xbar 選單列外掛輸出（標題列 + 下拉明細 + 動作）。"""
     b, w, t = d["block"], d["week_block"], d["totals"]
@@ -990,7 +1005,7 @@ def main():
         print(f"找不到 {PROJECTS_DIR}，這台機器可能沒用過 Claude Code。")
         sys.exit(1)
     quiet = any(f in sys.argv for f in
-                ("--oneline", "--summary", "--notify", "--calibrate", "--swiftbar"))
+                ("--oneline", "--summary", "--notify", "--calibrate", "--swiftbar", "--json"))
     if not quiet:
         print("解析 Claude Code 用量中…")
     data = build_data()
@@ -1010,6 +1025,8 @@ def main():
         return
     if "--swiftbar" in sys.argv:
         swiftbar_output(data); return
+    if "--json" in sys.argv:
+        json_output(data); return
     if "--oneline" in sys.argv:
         print(oneline(data)); return
     if "--summary" in sys.argv:
