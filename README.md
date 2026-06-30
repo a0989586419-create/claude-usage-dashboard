@@ -63,11 +63,26 @@ python3 generate.py --demo      # render with synthetic data (for screenshots)
   今日花費   : $74.42   ·  累計等值 $5,339  ·  7.13B tokens
 ```
 
+### Menu-bar widget (macOS)
+
+Keep usage in your menu bar, auto-refreshing every 5 minutes, via
+[SwiftBar](https://swiftbar.app) or [xbar](https://xbarapp.com):
+
+```bash
+./安裝選單列小工具.command        # or: bash 安裝選單列小工具.command
+```
+
+It installs SwiftBar (Homebrew) if needed, drops in `menubar/claude-usage.5m.sh`
+with your repo path filled in, and you'll see **`⛁ 5h% · 週%`** in the menu bar.
+The dropdown shows the full breakdown plus actions: open the dashboard, calibrate
+your plan, and a repo link. Each person's plan limit lives in their own
+`config.json`, so the same widget works for Pro / Max (5x) / Max (20x) — just run
+**🎯 校準方案** once from the dropdown.
+
 ### Status bar integration (Claude Code)
 
 `--oneline` prints `⛁ 5h 19% · 週 12% · 今日 $74.42`. Wire it into your Claude Code
-[statusline](https://docs.claude.com/en/docs/claude-code/statusline) or a macOS menu-bar
-tool (e.g. [xbar](https://xbarapp.com/)) to keep usage in view.
+[statusline](https://docs.claude.com/en/docs/claude-code/statusline) to keep usage in view.
 
 ### Desktop alerts (cron)
 

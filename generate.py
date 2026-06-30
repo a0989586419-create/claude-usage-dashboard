@@ -826,6 +826,35 @@ def oneline(d):
     return f"⛁ 5h {b['pct']:.0f}% · 週 {w['pct']:.0f}% · 今日 {fmt_usd(d['today']['cost'])}"
 
 
+def swiftbar_output(d):
+    """SwiftBar / xbar 選單列外掛輸出（標題列 + 下拉明細 + 動作）。"""
+    b, w, t = d["block"], d["week_block"], d["totals"]
+    script = os.path.abspath(__file__)
+    py = sys.executable or "/usr/bin/python3"
+
+    def col(p):
+        return "#ff6b6b" if p >= 85 else "#f5c451" if p >= 60 else "#3fb68b"
+
+    mx = max(b["pct"], w["pct"])
+    plan = d.get("plan_name") or "未校準（基準＝歷史最高）"
+    lines = [
+        f"⛁ {b['pct']:.0f}%·{w['pct']:.0f}% | color={col(mx)}",
+        "---",
+        f"Claude Code 用量　·　{plan} | size=11 color=#8b98a9",
+        f"5 小時視窗　{b['pct']:.0f}%　{fmt_usd(b['used_cost'])} / {fmt_usd(b['limit'])} | color={col(b['pct'])}",
+        f"　還能用 {fmt_usd(b['remain'])}　·　約 {b['reset_in']}h 後重置 | size=11 color=#8b98a9",
+        f"本週用量　　{w['pct']:.0f}%　{fmt_usd(w['used_cost'])} / {fmt_usd(w['limit'])} | color={col(w['pct'])}",
+        f"　還能用 {fmt_usd(w['remain'])}　·　約 {w['reset_days']}d 後重置 | size=11 color=#8b98a9",
+        f"今日 {fmt_usd(d['today']['cost'])}　·　累計等值 {fmt_usd(t['cost'])}　·　{_fmt_tok(t['tokens'])} | size=11 color=#8b98a9",
+        "---",
+        f"🔄 開啟完整面板 | bash='{py}' param1='{script}' terminal=false refresh=true",
+        f"🎯 校準方案（Terminal） | bash='{py}' param1='{script}' param2='--calibrate' terminal=true",
+        "📂 GitHub repo | href=https://github.com/a0989586419-create/claude-usage-dashboard",
+        f"更新於 {d['generated_at']} | size=11 color=#5b6675",
+    ]
+    print("\n".join(lines))
+
+
 def do_notify(d, threshold):
     """用量超過門檻就跳桌面通知（mac: osascript / Linux: notify-send）。"""
     import subprocess, platform
@@ -960,7 +989,8 @@ def main():
     if not os.path.isdir(PROJECTS_DIR):
         print(f"找不到 {PROJECTS_DIR}，這台機器可能沒用過 Claude Code。")
         sys.exit(1)
-    quiet = any(f in sys.argv for f in ("--oneline", "--summary", "--notify", "--calibrate"))
+    quiet = any(f in sys.argv for f in
+                ("--oneline", "--summary", "--notify", "--calibrate", "--swiftbar"))
     if not quiet:
         print("解析 Claude Code 用量中…")
     data = build_data()
@@ -978,6 +1008,8 @@ def main():
         else:
             run_calibrate(data)
         return
+    if "--swiftbar" in sys.argv:
+        swiftbar_output(data); return
     if "--oneline" in sys.argv:
         print(oneline(data)); return
     if "--summary" in sys.argv:
