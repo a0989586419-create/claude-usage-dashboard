@@ -838,6 +838,7 @@ def json_output(d):
                  "remain": w["remain"], "reset_days": w["reset_days"]},
         "today": d["today"]["cost"], "total": d["totals"]["cost"],
         "tokens": d["totals"]["tokens"],
+        "spark": [round(x["cost"], 2) for x in d["by_day"][-14:]],
     }, ensure_ascii=False))
 
 
