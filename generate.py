@@ -42,6 +42,29 @@ DEFAULT_PRICE = {"in": 5.0, "out": 25.0}  # 不認得的模型先當 opus 估
 #   None = 自動（歷史最高）。
 PLAN_5H_LIMIT_USD = None       # 例：Max 約一個視窗 ~50；自行調整
 PLAN_WEEKLY_LIMIT_USD = None   # 例：每週上限的等值成本
+PLAN_NAME = ""                 # 方案名稱（顯示用），例 "Max (5x)"
+NOTIFY_THRESHOLD = 80          # 用量超過此 % 就提醒（--notify）
+
+# 個人設定檔（gitignore）。由 --calibrate 產生，會覆蓋上面三個值。
+_CFG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
+
+def _load_config():
+    global PLAN_5H_LIMIT_USD, PLAN_WEEKLY_LIMIT_USD, PLAN_NAME
+    try:
+        with open(_CFG, encoding="utf-8") as fh:
+            c = json.load(fh)
+        PLAN_5H_LIMIT_USD = c.get("limit_5h_usd") or PLAN_5H_LIMIT_USD
+        PLAN_WEEKLY_LIMIT_USD = c.get("limit_weekly_usd") or PLAN_WEEKLY_LIMIT_USD
+        PLAN_NAME = c.get("plan", PLAN_NAME)
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"（config.json 讀取失敗，忽略：{e}）")
+
+
+def fmt_usd(n):
+    return f"${n:,.0f}" if n >= 1000 else f"${n:.2f}"
 
 
 def price_for(model: str):
@@ -314,6 +337,7 @@ def build_data():
 
     return {
         "generated_at": now.strftime("%Y-%m-%d %H:%M"),
+        "plan_name": PLAN_NAME,
         "totals": {
             "cost": round(t["cost"], 2),
             "input": int(t["input"]), "output": int(t["output"]),
@@ -604,7 +628,8 @@ function ringSVG(pct, sizeR){
   const b=D.block, w=D.week_block, el=$('block');
   if(!b.active && !b.used_cost){
     el.innerHTML='<div class="status"><span class="dot"></span>目前沒有進行中的視窗</div>'; return; }
-  const srcTxt = b.limit_src==='manual' ? '方案上限' : '歷史最高 5h';
+  const srcTxt = D.plan_name ? (D.plan_name+' 上限') : (b.limit_src==='manual' ? '方案上限' : '歷史最高 5h');
+  const wkSrc = D.plan_name ? (D.plan_name+' 週上限') : '上限';
   el.innerHTML=`
     <div style="display:flex;gap:16px;align-items:center">
       ${ringSVG(b.pct, 50)}
@@ -630,7 +655,7 @@ function ringSVG(pct, sizeR){
         <div class="wk-pct" style="color:${gaugeColor(w.pct)}">${w.pct.toFixed(0)}%</div>
       </div>
       <div class="wk-foot">
-        <span><b style="color:var(--acc2)">${fmtUSD(w.used_cost)}</b> / ${fmtUSD(w.limit)} 上限</span>
+        <span><b style="color:var(--acc2)">${fmtUSD(w.used_cost)}</b> / ${fmtUSD(w.limit)} ${wkSrc}</span>
         <span>還能用 <b style="color:var(--grn)">${fmtUSD(w.remain)}</b></span>
       </div>
     </div>`;
@@ -775,7 +800,107 @@ def demo_data():
     }
 
 
+def _fmt_tok(n):
+    return f"{n/1e9:.2f}B" if n >= 1e9 else f"{n/1e6:.1f}M" if n >= 1e6 else f"{n/1e3:.0f}K"
+
+
+def print_summary(d):
+    """終端機文字摘要（不開瀏覽器）。"""
+    b, w, t = d["block"], d["week_block"], d["totals"]
+    plan = f"（{d['plan_name']}）" if d.get("plan_name") else ""
+    print()
+    print(f"  📊 Claude Code 用量摘要{plan}   {d['generated_at']}")
+    print("  " + "─" * 46)
+    print(f"  5 小時視窗 : {b['pct']:>4.0f}%   {fmt_usd(b['used_cost'])} / {fmt_usd(b['limit'])}"
+          f"   約 {b['reset_in']} 小時後重置")
+    print(f"  本週用量   : {w['pct']:>4.0f}%   {fmt_usd(w['used_cost'])} / {fmt_usd(w['limit'])}"
+          f"   約 {w['reset_days']} 天後重置")
+    print(f"  今日花費   : {fmt_usd(d['today']['cost'])}   ·  累計等值 {fmt_usd(t['cost'])}"
+          f"  ·  {_fmt_tok(t['tokens'])} tokens")
+    print()
+
+
+def oneline(d):
+    """單行（給 Claude Code statusline 或 menu bar 用）。"""
+    b, w = d["block"], d["week_block"]
+    return f"⛁ 5h {b['pct']:.0f}% · 週 {w['pct']:.0f}% · 今日 {fmt_usd(d['today']['cost'])}"
+
+
+def do_notify(d, threshold):
+    """用量超過門檻就跳桌面通知（mac: osascript / Linux: notify-send）。"""
+    import subprocess, platform
+    b, w = d["block"], d["week_block"]
+    alerts = []
+    if b["pct"] >= threshold:
+        alerts.append(f"5 小時視窗已用 {b['pct']:.0f}%")
+    if w["pct"] >= threshold:
+        alerts.append(f"本週已用 {w['pct']:.0f}%")
+    if not alerts:
+        print(f"用量正常（5h {b['pct']:.0f}% / 週 {w['pct']:.0f}%），未達 {threshold}% 門檻")
+        return
+    msg, title = " · ".join(alerts), "⚠️ Claude 用量提醒"
+    sysname = platform.system()
+    try:
+        if sysname == "Darwin":
+            subprocess.run(["osascript", "-e",
+                            f'display notification "{msg}" with title "{title}" sound name "Ping"'])
+        elif sysname == "Linux":
+            subprocess.run(["notify-send", title, msg])
+        else:
+            print(f"{title}：{msg}")
+    except Exception as e:
+        print(f"（通知失敗：{e}）{title}：{msg}")
+    print(f"已提醒：{msg}")
+
+
+def run_calibrate(data):
+    """用『官方 設定 → Usage』目前顯示的 % 反推分母，存進 config.json。"""
+    b, w = data["block"], data["week_block"]
+    print("\n用『Claude 設定 → Usage』目前顯示的 % 來校準（最貼近官方的做法）。")
+    print(f"本工具現在量到：5 小時用量 {fmt_usd(b['used_cost'])}、本週用量 {fmt_usd(w['used_cost'])}\n")
+
+    def ask(label, used):
+        if used <= 0:
+            print(f"（{label}目前用量為 0，跳過）")
+            return None
+        s = input(f"官方『{label}』現在顯示百分之幾？(只輸數字，Enter 跳過) ").strip()
+        if not s:
+            return None
+        try:
+            p = float(s)
+        except ValueError:
+            print("  輸入無效，跳過")
+            return None
+        return round(used / (p / 100), 2) if p > 0 else None
+
+    lim5 = ask("5 小時 / current session", b["used_cost"])
+    limw = ask("本週 / weekly all models", w["used_cost"])
+    plan = input("方案名稱（例 Max (5x)，可留空）：").strip()
+
+    cfg = {}
+    if os.path.exists(_CFG):
+        try:
+            cfg = json.load(open(_CFG, encoding="utf-8"))
+        except Exception:
+            pass
+    if lim5:
+        cfg["limit_5h_usd"] = lim5
+    if limw:
+        cfg["limit_weekly_usd"] = limw
+    if plan:
+        cfg["plan"] = plan
+    with open(_CFG, "w", encoding="utf-8") as fh:
+        json.dump(cfg, fh, ensure_ascii=False, indent=2)
+    print(f"\n✓ 已存 config.json：{cfg}")
+    print("重新產生面板…")
+    _load_config()
+    with open(OUT_HTML, "w", encoding="utf-8") as fh:
+        fh.write(render_html(build_data()))
+    webbrowser.open(f"file://{OUT_HTML}")
+
+
 def main():
+    _load_config()
     if "--demo" in sys.argv:
         print("產生示範資料面板（demo）…")
         data = demo_data()
@@ -789,8 +914,25 @@ def main():
     if not os.path.isdir(PROJECTS_DIR):
         print(f"找不到 {PROJECTS_DIR}，這台機器可能沒用過 Claude Code。")
         sys.exit(1)
-    print("解析 Claude Code 用量中…")
+    quiet = any(f in sys.argv for f in ("--oneline", "--summary", "--notify", "--calibrate"))
+    if not quiet:
+        print("解析 Claude Code 用量中…")
     data = build_data()
+    if "--calibrate" in sys.argv:
+        run_calibrate(data); return
+    if "--oneline" in sys.argv:
+        print(oneline(data)); return
+    if "--summary" in sys.argv:
+        print_summary(data); return
+    if "--notify" in sys.argv:
+        thr = NOTIFY_THRESHOLD
+        i = sys.argv.index("--notify")
+        if i + 1 < len(sys.argv):  # 可選自訂門檻：--notify 50
+            try:
+                thr = float(sys.argv[i + 1])
+            except ValueError:
+                pass
+        do_notify(data, thr); return
     html_out = render_html(data)
     with open(OUT_HTML, "w", encoding="utf-8") as f:
         f.write(html_out)

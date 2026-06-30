@@ -252,7 +252,8 @@ function ringSVG(pct, sizeR){
   const b=D.block, w=D.week_block, el=$('block');
   if(!b.active && !b.used_cost){
     el.innerHTML='<div class="status"><span class="dot"></span>目前沒有進行中的視窗</div>'; return; }
-  const srcTxt = b.limit_src==='manual' ? '方案上限' : '歷史最高 5h';
+  const srcTxt = D.plan_name ? (D.plan_name+' 上限') : (b.limit_src==='manual' ? '方案上限' : '歷史最高 5h');
+  const wkSrc = D.plan_name ? (D.plan_name+' 週上限') : '上限';
   el.innerHTML=`
     <div style="display:flex;gap:16px;align-items:center">
       ${ringSVG(b.pct, 50)}
@@ -278,7 +279,7 @@ function ringSVG(pct, sizeR){
         <div class="wk-pct" style="color:${gaugeColor(w.pct)}">${w.pct.toFixed(0)}%</div>
       </div>
       <div class="wk-foot">
-        <span><b style="color:var(--acc2)">${fmtUSD(w.used_cost)}</b> / ${fmtUSD(w.limit)} 上限</span>
+        <span><b style="color:var(--acc2)">${fmtUSD(w.used_cost)}</b> / ${fmtUSD(w.limit)} ${wkSrc}</span>
         <span>還能用 <b style="color:var(--grn)">${fmtUSD(w.remain)}</b></span>
       </div>
     </div>`;

@@ -5,6 +5,9 @@ index.html
 # 預覽伺服器設定（含本機路徑）
 .claude/
 
+# 個人校準設定（方案上限）
+config.json
+
 # 系統 / 快取
 .DS_Store
 __pycache__/

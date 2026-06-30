@@ -6,8 +6,10 @@ local session logs under `~/.claude/projects`, computes token usage and the
 
 > 繁體中文說明請見 [README.zh-TW.md](README.zh-TW.md)
 
+![Claude Code usage dashboard](docs/screenshot.png)
+
 **▶️ Live preview (synthetic data):** open [`docs/demo.html`](docs/demo.html) in your
-browser — no setup, no personal data. _(Add `docs/screenshot.png` here for the GitHub preview image.)_
+browser — no setup, no personal data.
 
 ## Why
 
@@ -38,6 +40,57 @@ Re-run `generate.py` any time to refresh `index.html` with your latest usage.
 
 On macOS you can double-click **`更新並開啟.command`** (rename it if you like) to
 refresh and open in one step.
+
+## Commands
+
+```bash
+python3 generate.py             # build dashboard + open in browser
+python3 generate.py --no-open   # build only
+python3 generate.py --summary   # print a text summary in the terminal (no browser)
+python3 generate.py --oneline   # one compact line — great for a status bar
+python3 generate.py --notify 80 # desktop notification if 5h OR weekly usage ≥ 80%
+python3 generate.py --calibrate # match the gauge to your official Settings → Usage %
+python3 generate.py --demo      # render with synthetic data (for screenshots)
+```
+
+`--summary` looks like:
+
+```
+  📊 Claude Code 用量摘要（Max (5x)）   2026-06-30 22:49
+  ──────────────────────────────────────────────
+  5 小時視窗 :   19%   $30.73 / $160.14   約 4.2 小時後重置
+  本週用量   :   12%   $129.77 / $1,083   約 5.0 天後重置
+  今日花費   : $74.42   ·  累計等值 $5,339  ·  7.13B tokens
+```
+
+### Status bar integration (Claude Code)
+
+`--oneline` prints `⛁ 5h 19% · 週 12% · 今日 $74.42`. Wire it into your Claude Code
+[statusline](https://docs.claude.com/en/docs/claude-code/statusline) or a macOS menu-bar
+tool (e.g. [xbar](https://xbarapp.com/)) to keep usage in view.
+
+### Desktop alerts (cron)
+
+```bash
+# notify when usage crosses 80%, checked every 15 min
+*/15 * * * * /usr/bin/python3 ~/path/to/claude-usage-dashboard/generate.py --notify 80
+```
+macOS uses `osascript`, Linux uses `notify-send`.
+
+### Calibrate the gauge to your real plan %
+
+Anthropic doesn't expose your plan's token limit, but you can **anchor** the gauge to
+the official numbers. Open Claude Code → **Settings → Usage**, then:
+
+```bash
+python3 generate.py --calibrate
+# it asks: "official current session shows what %?"  → e.g. 15
+#          "official weekly shows what %?"           → e.g. 38
+```
+
+It back-computes the equivalent-cost ceiling from your current usage and saves it to
+`config.json` (gitignored). From then on the gauge tracks much closer to the official
+page. Re-run occasionally if it drifts.
 
 ## The usage % gauge — read this
 
