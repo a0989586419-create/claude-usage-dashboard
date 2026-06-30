@@ -1,0 +1,11 @@
+# 產生出來的面板含「個人用量資料」，不要進版控
+index.html
+*.local.html
+
+# 預覽伺服器設定（含本機路徑）
+.claude/
+
+# 系統 / 快取
+.DS_Store
+__pycache__/
+*.pyc
