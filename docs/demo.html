@@ -45,6 +45,7 @@
 
   .row{display:grid;gap:14px;margin-bottom:14px}
   .row.c2{grid-template-columns:1.6fr 1fr}
+  .row.usage{grid-template-columns:1fr 1.3fr}
   .row.c3{grid-template-columns:repeat(3,1fr)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
   .card h3{margin:0 0 2px;font-size:15px;font-weight:680}
@@ -117,7 +118,7 @@
   .foot{color:var(--dim);font-size:11.5px;text-align:center;margin-top:34px;line-height:1.7}
   .tip{cursor:help;border-bottom:1px dashed var(--dim)}
   @media(max-width:820px){
-    .kpis{grid-template-columns:repeat(2,1fr)} .row.c2,.row.c3{grid-template-columns:1fr}
+    .kpis{grid-template-columns:repeat(2,1fr)} .row.c2,.row.usage,.row.c3{grid-template-columns:1fr}
     .tools{grid-template-columns:1fr}
   }
 </style>
@@ -129,7 +130,7 @@
       <div class="logo">📊</div>
       <div>
         <h1>AI 用量監控面板</h1>
-        <div class="sub">Claude Code · 等值 API 成本與 token 解讀</div>
+        <div class="sub">Claude Code · 用量總覽與盯盤</div>
       </div>
     </div>
     <div class="gen">資料更新於 <span id="gen"></span><br><span id="range"></span></div>
@@ -137,33 +138,33 @@
 
   <div class="kpis" id="kpis"></div>
 
-  <div class="row c2">
-    <div class="card">
-      <h3>每日成本趨勢 <span class="pill">近 30 天 · 等值 API（美元）</span></h3>
-      <div class="desc">每根 = 當天若用 API 計價的花費。訂閱制下這是你「賺到」的價值。</div>
-      <div id="dailyChart"></div>
-    </div>
+  <div class="row usage">
     <div class="card block-card">
-      <h3>目前 5 小時用量視窗 <span class="pill">現在用量 / 可用上限</span></h3>
-      <div class="desc">基準＝你歷史最高的 5h 用量（自動）。知道方案上限可在 generate.py 設定，佔比就改用實際分母。</div>
+      <h3>用量佔比 <span class="pill">5 小時 / 本週</span></h3>
+      <div class="desc">最該盯的兩個數字——現在這個視窗、這週各用了多少。基準＝歷史最高（自動），可在 generate.py 設方案上限。</div>
       <div id="block"></div>
+    </div>
+    <div class="card">
+      <h3>每日用量 <span class="pill">近 30 天 · token 量</span></h3>
+      <div class="desc">每根 = 當天用掉的 token。越高代表那天越操。</div>
+      <div id="dailyChart"></div>
     </div>
   </div>
 
   <div class="row c3">
     <div class="card">
-      <h3>各模型占比</h3>
-      <div class="desc">不同模型計價差很多，Opus 最貴。</div>
+      <h3>各模型用量</h3>
+      <div class="desc">你最常用哪個模型（依 token 量）。</div>
       <div id="modelChart"></div>
     </div>
     <div class="card">
-      <h3>專案花費排行 <span class="pill">Top 8</span></h3>
+      <h3>專案用量排行 <span class="pill">Top 8</span></h3>
       <div class="desc">哪個專案最吃 token。</div>
       <div id="projRank"></div>
     </div>
     <div class="card">
       <h3>Token 組成</h3>
-      <div class="desc">快取讀取占比越高，代表越省（只算 0.1× 價）。</div>
+      <div class="desc">快取讀取占比越高，代表越省。</div>
       <div id="comp"></div>
     </div>
   </div>
@@ -197,10 +198,10 @@ $('range').textContent = D.totals.first_day+' → '+D.totals.last_day+'（'+D.to
 // ── KPI ──
 const T = D.totals;
 const kpis = [
-  {cls:'hero', lab:'💰 等值 API 總成本', val:fmtUSD(T.cost), hint:'訂閱制下省下的價值 · 平均 '+fmtUSD(T.avg_per_day)+'/天'},
-  {lab:'🔢 累計 Token', val:fmtN(T.tokens), hint:T.messages.toLocaleString()+' 則 AI 回應'},
-  {lab:'📅 今日花費', val:fmtUSD(D.today.cost), hint:fmtN(D.today.tokens)+' tokens · '+D.today.messages+' 則'},
-  {lab:'🗂️ 專案 / Session', val:T.projects+' / '+T.sessions, hint:'本週 '+fmtUSD(D.week.cost)+' · 本月 '+fmtUSD(D.month.cost)},
+  {cls:'hero', lab:'🔢 累計用量', val:fmtN(T.tokens), hint:T.messages.toLocaleString()+' 則 AI 回應　·　≈ 訂閱省下 '+fmtUSD(T.cost)+' 等值'},
+  {lab:'📅 今日用量', val:fmtN(D.today.tokens), hint:D.today.messages+' 則 · '+fmtUSD(D.today.cost)+' 等值'},
+  {lab:'📆 本週佔比', val:D.week_block.pct.toFixed(0)+'%', hint:fmtN(D.week.tokens)+' tokens · 約 '+D.week_block.reset_days+' 天後重置'},
+  {lab:'🔥 活躍天數', val:T.active_days+' 天', hint:T.projects+' 專案 · '+T.sessions+' session'},
 ];
 $('kpis').innerHTML = kpis.map(k=>`
   <div class="kpi ${k.cls||''}">
@@ -214,17 +215,17 @@ $('kpis').innerHTML = kpis.map(k=>`
   const days = D.by_day.slice(-30);
   const W=720,H=210, pl=40,pr=12,pt=14,pb=26;
   if(!days.length){ $('dailyChart').innerHTML='<div class="desc">尚無資料</div>'; return; }
-  const max = Math.max(...days.map(d=>d.cost),0.01);
+  const max = Math.max(...days.map(d=>d.tokens),1);
   const iw=W-pl-pr, ih=H-pt-pb, bw=iw/days.length;
   let bars='', lbls='', grid='';
   for(let g=0;g<=3;g++){ const y=pt+ih*g/3; const v=max*(1-g/3);
     grid+=`<line x1="${pl}" y1="${y}" x2="${W-pr}" y2="${y}" stroke="#1c2632"/>`+
-          `<text x="${pl-6}" y="${y+3}" text-anchor="end" fill="#5b6675" font-size="10">$${v.toFixed(v<1?2:0)}</text>`;
+          `<text x="${pl-6}" y="${y+3}" text-anchor="end" fill="#5b6675" font-size="10">${fmtN(v)}</text>`;
   }
   days.forEach((d,i)=>{
-    const h=Math.max(d.cost/max*ih,1), x=pl+i*bw, y=pt+ih-h;
+    const h=Math.max(d.tokens/max*ih,1), x=pl+i*bw, y=pt+ih-h;
     bars+=`<rect x="${x+bw*0.16}" y="${y}" width="${bw*0.68}" height="${h}" rx="2" fill="url(#bg)">
-      <title>${d.date}　${fmtUSD(d.cost)}　${fmtN(d.tokens)} tokens　${d.messages} 則</title></rect>`;
+      <title>${d.date}　${fmtN(d.tokens)} tokens　${d.messages} 則　(${fmtUSD(d.cost)} 等值)</title></rect>`;
     if(i%5===0||i===days.length-1){
       lbls+=`<text x="${x+bw/2}" y="${H-8}" text-anchor="middle" fill="#5b6675" font-size="9.5">${d.date.slice(5)}</text>`;
     }
@@ -287,34 +288,34 @@ function ringSVG(pct, sizeR){
 
 // ── 各模型 donut ──
 (function(){
-  const m=D.by_model; const total=m.reduce((s,x)=>s+x.cost,0)||1;
+  const m=D.by_model; const total=m.reduce((s,x)=>s+x.tokens,0)||1;
   const colors=['#ff8c42','#5aa9e6','#9b8cff','#3fb68b','#ff6b9d','#f5c451'];
   const cx=78,cy=78,r=58,sw=22; let ang=-Math.PI/2, segs='';
   m.forEach((x,i)=>{
-    const frac=x.cost/total, a2=ang+frac*Math.PI*2;
+    const frac=x.tokens/total, a2=ang+frac*Math.PI*2;
     const x1=cx+r*Math.cos(ang), y1=cy+r*Math.sin(ang);
     const x2=cx+r*Math.cos(a2), y2=cy+r*Math.sin(a2);
     const large=frac>0.5?1:0;
-    segs+=`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}" stroke="${colors[i%6]}" stroke-width="${sw}" fill="none" stroke-linecap="butt"><title>${x.model}　${fmtUSD(x.cost)}（${(frac*100).toFixed(1)}%）</title></path>`;
+    segs+=`<path d="M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}" stroke="${colors[i%6]}" stroke-width="${sw}" fill="none" stroke-linecap="butt"><title>${x.model}　${fmtN(x.tokens)} tokens（${(frac*100).toFixed(1)}%）· ${fmtUSD(x.cost)} 等值</title></path>`;
     ang=a2;
   });
-  const leg=m.map((x,i)=>`<span><i style="background:${colors[i%6]}"></i>${esc(x.model)} ${(x.cost/total*100).toFixed(0)}%</span>`).join('');
+  const leg=m.map((x,i)=>`<span><i style="background:${colors[i%6]}"></i>${esc(x.model)} ${(x.tokens/total*100).toFixed(0)}%</span>`).join('');
   $('modelChart').innerHTML=`
     <div style="display:flex;gap:14px;align-items:center">
       <svg viewBox="0 0 156 156" style="width:150px;flex:none">${segs}
-        <text x="78" y="74" text-anchor="middle" fill="#e6edf3" font-size="20" font-weight="700">${fmtUSD(total)}</text>
-        <text x="78" y="92" text-anchor="middle" fill="#8b98a9" font-size="10">總等值成本</text></svg>
+        <text x="78" y="74" text-anchor="middle" fill="#e6edf3" font-size="19" font-weight="700">${fmtN(total)}</text>
+        <text x="78" y="92" text-anchor="middle" fill="#8b98a9" font-size="10">總 token</text></svg>
       <div class="legend" style="flex-direction:column;gap:8px">${leg}</div>
     </div>`;
 })();
 
 // ── 專案排行 ──
 (function(){
-  const p=D.by_project.slice(0,8); const max=Math.max(...p.map(x=>x.cost),0.01);
+  const p=D.by_project.slice(0,8); const max=Math.max(...p.map(x=>x.tokens),1);
   const colors=['#ff8c42','#5aa9e6','#9b8cff','#3fb68b','#ff6b9d','#f5c451','#ffb37a','#6fd3b8'];
   $('projRank').innerHTML=`<div class="rank">`+p.map((x,i)=>`
-    <div class="it"><div class="nm"><b>${esc(x.project)}</b><span>${fmtUSD(x.cost)} · ${fmtN(x.tokens)}</span></div>
-    <div class="tr"><div class="fl" style="width:${Math.max(x.cost/max*100,2)}%;background:${colors[i%8]}"></div></div></div>`).join('')+`</div>`;
+    <div class="it"><div class="nm"><b>${esc(x.project)}</b><span>${fmtN(x.tokens)} · ${x.messages} 則</span></div>
+    <div class="tr"><div class="fl" style="width:${Math.max(x.tokens/max*100,2)}%;background:${colors[i%8]}"></div></div></div>`).join('')+`</div>`;
 })();
 
 // ── token 組成 ──
