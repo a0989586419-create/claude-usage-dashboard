@@ -18,6 +18,7 @@ import glob
 import os
 import sys
 import html
+import webbrowser
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
@@ -295,6 +296,8 @@ def build_data():
     auto_wk_limit = max(past_wk_costs) if past_wk_costs else 0.01
     wk_limit = PLAN_WEEKLY_LIMIT_USD if PLAN_WEEKLY_LIMIT_USD else auto_wk_limit
     cur_wk_v = weeks.get(cur_wk, {"cost": 0, "tokens": 0, "messages": 0})
+    next_monday = (now + timedelta(days=(7 - now.weekday()))).replace(
+        hour=0, minute=0, second=0, microsecond=0)
     week_block = {
         "used_cost": round(cur_wk_v["cost"], 2),
         "tokens": int(cur_wk_v["tokens"]),
@@ -302,6 +305,7 @@ def build_data():
         "limit_src": "manual" if PLAN_WEEKLY_LIMIT_USD else "auto",
         "pct": round((cur_wk_v["cost"] / wk_limit * 100) if wk_limit else 0, 1),
         "remain": round(max(wk_limit - cur_wk_v["cost"], 0), 2),
+        "reset_days": round((next_monday - now).total_seconds() / 86400, 1),
     }
 
     days_active = len(by_day)
@@ -406,6 +410,17 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .blk-item .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
   .bar-track{height:9px;background:#0e141d;border-radius:6px;overflow:hidden;margin:14px 0 6px}
   .bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--grn),var(--blu))}
+  /* 本週用量大條 */
+  .wk{margin-top:18px;border-top:1px solid var(--line);padding-top:15px}
+  .wk-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px}
+  .wk-head .t{font-size:14.5px;font-weight:700}
+  .wk-head .r{font-size:12px;color:var(--mut)}
+  .wk-mid{display:flex;align-items:center;gap:16px}
+  .wk-bar{flex:1;height:20px;background:#0e141d;border-radius:11px;overflow:hidden;position:relative}
+  .wk-fill{height:100%;border-radius:11px;transition:width .4s;min-width:8px}
+  .wk-pct{font-size:32px;font-weight:780;font-variant-numeric:tabular-nums;line-height:1}
+  .wk-foot{display:flex;justify-content:space-between;margin-top:11px;font-size:13.5px;color:var(--mut)}
+  .wk-foot b{font-variant-numeric:tabular-nums}
   .gnum{font-size:24px;font-weight:760;margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:.3px}
   .gnum .now{color:var(--acc2)} .gnum .sep,.gnum .lim{color:var(--mut);font-weight:600;font-size:18px}
   .glab{color:var(--dim);font-size:12px;margin-top:4px} .glab b{color:var(--grn)}
@@ -605,11 +620,19 @@ function ringSVG(pct, sizeR){
       <div class="blk-item"><div class="l">回應數</div><div class="v">${b.messages}</div></div>
       <div class="blk-item"><div class="l">已過時間</div><div class="v">${b.elapsed_hours}<span style="font-size:12px;color:var(--mut)"> 時</span></div></div>
     </div>
-    <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:13px">
-      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut)">
-        <span>本週用量</span><span style="font-variant-numeric:tabular-nums">${fmtUSD(w.used_cost)} / ${fmtUSD(w.limit)}　<b style="color:${gaugeColor(w.pct)}">${w.pct.toFixed(0)}%</b></span>
+    <div class="wk">
+      <div class="wk-head">
+        <span class="t">📆 本週用量</span>
+        <span class="r">約 ${w.reset_days} 天後重置</span>
       </div>
-      <div class="bar-track" style="margin:8px 0 0"><div class="bar-fill" style="width:${Math.min(w.pct,100)}%;background:${gaugeColor(w.pct)}"></div></div>
+      <div class="wk-mid">
+        <div class="wk-bar"><div class="wk-fill" style="width:${Math.min(w.pct,100)}%;background:linear-gradient(90deg,${gaugeColor(w.pct)},${gaugeColor(w.pct)}cc)"></div></div>
+        <div class="wk-pct" style="color:${gaugeColor(w.pct)}">${w.pct.toFixed(0)}%</div>
+      </div>
+      <div class="wk-foot">
+        <span><b style="color:var(--acc2)">${fmtUSD(w.used_cost)}</b> / ${fmtUSD(w.limit)} 上限</span>
+        <span>還能用 <b style="color:var(--grn)">${fmtUSD(w.remain)}</b></span>
+      </div>
     </div>`;
 })();
 
@@ -761,7 +784,7 @@ def main():
             f.write(html_out)
         print(f"✓ demo 完成：{OUT_HTML}")
         if "--no-open" not in sys.argv:
-            os.system(f'open "{OUT_HTML}"')
+            webbrowser.open(f"file://{OUT_HTML}")  # 跨平台開啟（mac/Win/Linux）
         return
     if not os.path.isdir(PROJECTS_DIR):
         print(f"找不到 {PROJECTS_DIR}，這台機器可能沒用過 Claude Code。")
@@ -776,7 +799,7 @@ def main():
     print(f"  等值成本 {t['cost']:,} 美元 · {t['tokens']:,} tokens · "
           f"{t['messages']:,} 則 · {t['active_days']} 天 · {t['projects']} 專案")
     if "--no-open" not in sys.argv:
-        os.system(f'open "{OUT_HTML}"')
+        webbrowser.open(f"file://{OUT_HTML}")  # 跨平台開啟（mac/Win/Linux）
 
 
 if __name__ == "__main__":
