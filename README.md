@@ -92,6 +92,16 @@ It back-computes the equivalent-cost ceiling from your current usage and saves i
 `config.json` (gitignored). From then on the gauge tracks much closer to the official
 page. Re-run occasionally if it drifts.
 
+Non-interactive form (scriptable):
+
+```bash
+python3 generate.py --calibrate 5h=15 week=38 plan="Max (5x)"
+```
+
+> Tip: the **weekly** anchor is the most stable (it accumulates over the week). The
+> **5h** anchor is rougher because that window resets every 5 hours — for best results
+> read both numbers off Settings → Usage at the same moment you run `--calibrate`.
+
 ## The usage % gauge — read this
 
 Anthropic does **not** write your plan's real token limit to disk, so this tool

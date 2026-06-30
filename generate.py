@@ -853,6 +853,52 @@ def do_notify(d, threshold):
     print(f"已提醒：{msg}")
 
 
+def _write_config(cfg):
+    with open(_CFG, "w", encoding="utf-8") as fh:
+        json.dump(cfg, fh, ensure_ascii=False, indent=2)
+
+
+def _save_and_rebuild(lim5, limw, plan):
+    cfg = {}
+    if os.path.exists(_CFG):
+        try:
+            cfg = json.load(open(_CFG, encoding="utf-8"))
+        except Exception:
+            pass
+    if lim5:
+        cfg["limit_5h_usd"] = lim5
+    if limw:
+        cfg["limit_weekly_usd"] = limw
+    if plan:
+        cfg["plan"] = plan
+    _write_config(cfg)
+    print(f"✓ 已存 config.json：{cfg}")
+    _load_config()
+    with open(OUT_HTML, "w", encoding="utf-8") as fh:
+        fh.write(render_html(build_data()))
+
+
+def calibrate_noninteractive(data, kv):
+    """非互動校準：--calibrate 5h=15 week=38 plan="Max (5x)" """
+    b, w = data["block"], data["week_block"]
+    lim5 = limw = None
+    if "5h" in kv and b["used_cost"] > 0:
+        try:
+            p = float(kv["5h"])
+            lim5 = round(b["used_cost"] / (p / 100), 2) if p > 0 else None
+        except ValueError:
+            pass
+    if "week" in kv and w["used_cost"] > 0:
+        try:
+            p = float(kv["week"])
+            limw = round(w["used_cost"] / (p / 100), 2) if p > 0 else None
+        except ValueError:
+            pass
+    _save_and_rebuild(lim5, limw, kv.get("plan", ""))
+    if "--no-open" not in sys.argv:
+        webbrowser.open(f"file://{OUT_HTML}")
+
+
 def run_calibrate(data):
     """用『官方 設定 → Usage』目前顯示的 % 反推分母，存進 config.json。"""
     b, w = data["block"], data["week_block"]
@@ -919,7 +965,19 @@ def main():
         print("解析 Claude Code 用量中…")
     data = build_data()
     if "--calibrate" in sys.argv:
-        run_calibrate(data); return
+        kv = {}
+        for a in sys.argv:
+            if a.startswith("5h="):
+                kv["5h"] = a[3:]
+            elif a.startswith("week="):
+                kv["week"] = a[5:]
+            elif a.startswith("plan="):
+                kv["plan"] = a[5:]
+        if kv:  # 非互動：--calibrate 5h=15 week=38 plan="Max (5x)"
+            calibrate_noninteractive(data, kv)
+        else:
+            run_calibrate(data)
+        return
     if "--oneline" in sys.argv:
         print(oneline(data)); return
     if "--summary" in sys.argv:
