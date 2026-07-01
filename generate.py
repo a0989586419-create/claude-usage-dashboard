@@ -18,6 +18,7 @@ import glob
 import os
 import sys
 import html
+import time
 import webbrowser
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
@@ -92,6 +93,27 @@ def decode_project(dirname: str) -> str:
         return "unknown"
     parts = [p for p in dirname.split("-") if p]
     return parts[-1] if parts else dirname
+
+
+def load_official_usage(max_age=1800):
+    """讀 sync_official_usage.py 寫的官方用量快取（新於 max_age 秒才用）。不碰 token。"""
+    p = os.path.join(HOME, ".claude-usage-official.json")
+    try:
+        c = json.load(open(p, encoding="utf-8"))
+        if time.time() - c.get("fetched_at", 0) > max_age:
+            return None
+        return c
+    except Exception:
+        return None
+
+
+def _hours_until(iso):
+    """ISO8601(UTC) → 距現在幾小時（浮點）。"""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        return max((dt.timestamp() - time.time()) / 3600, 0)
+    except Exception:
+        return None
 
 
 def local_dt(ts: str):
@@ -330,6 +352,24 @@ def build_data():
         "remain": round(max(wk_limit - cur_wk_v["cost"], 0), 2),
         "reset_days": round((next_monday - now).total_seconds() / 86400, 1),
     }
+
+    # ── 官方真實用量（若有快取則覆蓋估算的佔比）──
+    official = load_official_usage()
+    if official:
+        fh = official.get("five_hour") or {}
+        sd = official.get("seven_day") or {}
+        if fh.get("utilization") is not None:
+            block["pct"] = round(fh["utilization"], 1)
+            block["official"] = True
+            h = _hours_until(fh.get("resets_at", ""))
+            if h is not None:
+                block["reset_in"] = round(h, 1)
+        if sd.get("utilization") is not None:
+            week_block["pct"] = round(sd["utilization"], 1)
+            week_block["official"] = True
+            h = _hours_until(sd.get("resets_at", ""))
+            if h is not None:
+                week_block["reset_days"] = round(h / 24, 1)
 
     days_active = len(by_day)
     first_day = by_day[0]["date"] if by_day else "-"
@@ -614,7 +654,7 @@ $('kpis').innerHTML = kpis.map(k=>`
 
 // ── 5h block 佔比環形儀表 ──
 function gaugeColor(p){ return p>=85?'#ff6b6b' : p>=60?'#f5c451' : '#3fb68b'; }
-function ringSVG(pct, sizeR){
+function ringSVG(pct, sizeR, official){
   const p=Math.min(pct,100), r=sizeR, c=2*Math.PI*r, off=c*(1-p/100);
   const col=gaugeColor(pct), cx=r+11, cy=r+11, d=2*(r+11);
   return `<svg viewBox="0 0 ${d} ${d}" style="width:128px;height:128px;flex:none">
@@ -623,7 +663,7 @@ function ringSVG(pct, sizeR){
       stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"
       transform="rotate(-90 ${cx} ${cy})"/>
     <text x="${cx}" y="${cy-2}" text-anchor="middle" fill="#e6edf3" font-size="26" font-weight="760">${pct.toFixed(0)}%</text>
-    <text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#8b98a9" font-size="10.5">已用佔比</text></svg>`;
+    <text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#8b98a9" font-size="10.5">${official?'官方即時':'已用佔比'}</text></svg>`;
 }
 (function(){
   const b=D.block, w=D.week_block, el=$('block');
@@ -631,13 +671,14 @@ function ringSVG(pct, sizeR){
     el.innerHTML='<div class="status"><span class="dot"></span>目前沒有進行中的視窗</div>'; return; }
   const srcTxt = D.plan_name ? (D.plan_name+' 上限') : (b.limit_src==='manual' ? '方案上限' : '歷史最高 5h');
   const wkSrc = D.plan_name ? (D.plan_name+' 週上限') : '上限';
+  const badge = '<span class="tag ok" style="margin-left:8px;font-size:10.5px;padding:2px 8px">官方即時</span>';
   el.innerHTML=`
     <div style="display:flex;gap:16px;align-items:center">
-      ${ringSVG(b.pct, 50)}
+      ${ringSVG(b.pct, 50, b.official)}
       <div style="flex:1;min-width:0">
-        <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'已結束'}　${b.start} – ${b.end}　·　${b.active?('約 '+b.reset_in+' 小時後重置'):'視窗已滿'}</div>
+        <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'已結束'}　${b.start} – ${b.end}　·　約 ${b.reset_in} 小時後重置${b.official?badge:''}</div>
         <div class="gnum"><span class="now">${fmtUSD(b.used_cost)}</span><span class="sep"> / </span><span class="lim">${fmtUSD(b.limit)}</span></div>
-        <div class="glab">現在用量 / ${srcTxt}基準　·　還能用 <b>${fmtUSD(b.remain)}</b></div>
+        <div class="glab">${b.official?'佔比為官方即時 · 金額為本機等值估算':('現在用量 / '+srcTxt+'基準　·　還能用 <b>'+fmtUSD(b.remain)+'</b>')}</div>
       </div>
     </div>
     <div class="block-grid" style="margin-top:14px">
@@ -648,7 +689,7 @@ function ringSVG(pct, sizeR){
     </div>
     <div class="wk">
       <div class="wk-head">
-        <span class="t">📆 本週用量</span>
+        <span class="t">📆 本週用量${w.official?badge:''}</span>
         <span class="r">約 ${w.reset_days} 天後重置</span>
       </div>
       <div class="wk-mid">

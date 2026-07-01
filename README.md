@@ -154,6 +154,28 @@ be badly skewed.
 **For your true plan %, always trust Settings → Usage.** This dashboard is for the
 analytics that page doesn't give you.
 
+### Accurate mode (optional) — real official % 
+
+By default the gauge is an estimate. If you want the **exact** session/weekly
+percentages that Settings → Usage shows, run the optional syncer:
+
+```bash
+python3 sync_official_usage.py     # reads your Claude Code OAuth token locally,
+                                   # fetches official usage, caches it
+python3 generate.py                # dashboard now shows real % with an "官方即時" badge
+```
+
+How it works: it reads the OAuth token Claude Code already stored on your machine
+(macOS Keychain / `~/.claude/.credentials.json`), refreshes it if needed, and calls
+Anthropic's `GET /api/oauth/usage` — the same endpoint Claude Code's status bar uses.
+The token never leaves your machine and is never committed.
+
+Caveats: this endpoint is **undocumented** and may change or break. The refresh
+endpoint is rate-limited — if you get repeated `429`s, re-login once in Claude Code
+(`/login`) to mint a fresh token, then run the syncer. To keep it fresh
+automatically, schedule `sync_official_usage.py` (e.g. a macOS LaunchAgent every
+20 min); the dashboard reads the cache and falls back to the estimate if it's stale.
+
 ## Pricing table (USD per million tokens)
 
 | Model | Input | Output | Cache write | Cache read |

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>IG 輪播圖 · Claude 用量監控</title>
+<style>
+  :root{
+    --bg:#0b0e14; --card:#151b26; --line:#222c3a; --txt:#e6edf3;
+    --mut:#8b98a9; --dim:#5b6675; --acc:#ff8c42; --acc2:#ffb37a;
+    --grn:#3fb68b; --blu:#5aa9e6; --pur:#9b8cff; --pnk:#ff6b9d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#05070b;font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;
+    display:flex;flex-direction:column;align-items:center;gap:30px;padding:30px}
+  .hint{color:#8b98a9;font-size:15px;text-align:center;max-width:1080px;line-height:1.7}
+  .slide{
+    width:1080px;height:1350px;flex:none;position:relative;overflow:hidden;
+    background:radial-gradient(1100px 700px at 80% -10%,#1c2335 0%,#0b0e14 58%),var(--bg);
+    color:var(--txt);padding:96px 88px;display:flex;flex-direction:column;
+    border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .bar{height:7px;width:120px;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--pnk),var(--pur))}
+  .eyebrow{color:var(--acc2);font-size:30px;font-weight:700;letter-spacing:2px;margin:54px 0 0}
+  h1{font-size:92px;font-weight:820;line-height:1.12;letter-spacing:1px}
+  h2{font-size:68px;font-weight:800;line-height:1.18}
+  .lead{font-size:40px;color:var(--mut);line-height:1.6;font-weight:500}
+  .big{font-size:120px;font-weight:850;letter-spacing:1px}
+  .grad{background:linear-gradient(120deg,var(--acc2),var(--pnk));-webkit-background-clip:text;background-clip:text;color:transparent}
+  ul{list-style:none;display:flex;flex-direction:column;gap:34px;margin-top:20px}
+  li{font-size:46px;font-weight:600;display:flex;gap:26px;align-items:flex-start;line-height:1.35}
+  li .em{font-size:52px;flex:none;line-height:1}
+  li small{display:block;font-size:30px;color:var(--mut);font-weight:500;margin-top:6px}
+  .spacer{flex:1}
+  .foot{display:none}
+  .dots{display:none}
+  .dot{width:14px;height:14px;border-radius:50%;background:#2a3444}
+  .dot.on{background:var(--acc)}
+  .gh{color:var(--mut);font-weight:600}
+  .step{display:flex;gap:30px;align-items:center;font-size:46px;font-weight:600;margin-top:8px}
+  .num{width:74px;height:74px;border-radius:18px;flex:none;display:grid;place-items:center;
+    font-size:40px;font-weight:800;color:#0b0e14;background:linear-gradient(135deg,var(--acc2),var(--acc))}
+  code{font-family:"SF Mono",Menlo,monospace;background:#0e141d;border:1px solid var(--line);
+    padding:8px 18px;border-radius:12px;font-size:34px;color:var(--acc2)}
+  .stat{display:flex;gap:60px;margin-top:40px}
+  .stat .s .n{font-size:84px;font-weight:840}
+  .stat .s .l{font-size:30px;color:var(--mut);margin-top:6px}
+  .logo{width:96px;height:96px;border-radius:26px;display:grid;place-items:center;font-size:52px;
+    background:linear-gradient(135deg,var(--acc),var(--pnk));box-shadow:0 14px 40px rgba(255,120,80,.3)}
+  @media print{body{background:#fff;gap:0;padding:0}.hint{display:none}.slide{border-radius:0;box-shadow:none;page-break-after:always}}
+</style>
+</head>
+<body>
+<div class="hint">↓ 7 張 IG 輪播圖（1080×1350）。截圖每一張即可發文：Mac 按 <b>⌘⇧4</b> 框選，或用瀏覽器「列印 → 存成 PDF」一次匯出。</div>
+
+<!-- 1 封面 -->
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">CLAUDE CODE · 用量監控</div>
+  <h1>我做了一個<br>盯 Claude 用量的<br><span class="grad">桌面小工具</span></h1>
+  <div class="lead" style="margin-top:40px">用 Claude Code，做一個監控 Claude Code 的工具 👀<br>開源・免費・完全離線</div>
+  <div class="spacer"></div>
+  <div class="stat">
+    <div class="s"><div class="n grad">72 億</div><div class="l">累計 tokens</div></div>
+    <div class="s"><div class="n grad">5,400</div><div class="l">等值省下（美元）</div></div>
+    <div class="s"><div class="n grad">0</div><div class="l">工具本身耗用 token</div></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">@cloudmonster</span><div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>
+</section>
+
+<!-- 2 這是什麼 -->
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">這是什麼</div>
+  <h2>一個本機儀表板<br>一眼看完你的用量</h2>
+  <div class="lead" style="margin-top:44px">官方只給你一個百分比，看不到細節。<br>這個工具讀你電腦上的紀錄，幫你算出：<br><br>用了多少 · 還剩多少 · 快撞上限了沒</div>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">github.com/a0989586419-create/claude-usage-dashboard</span><div class="dots"><span class="dot"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>
+</section>
+
+<!-- 3 功能 -->
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">它能做什麼</div>
+  <h2>5 大功能</h2>
+  <ul>
+    <li><span class="em">🟢</span><div>5 小時 / 本週用量佔比<small>還剩多少，一眼看完</small></div></li>
+    <li><span class="em">📈</span><div>每日 token 趨勢 · 各模型・各專案排行</div></li>
+    <li><span class="em">🕒</span><div>活躍時段熱力圖<small>看自己都幾點在爆肝</small></div></li>
+    <li><span class="em">🔔</span><div>快撞上限自動跳通知<small>完全不用自己盯</small></div></li>
+  </ul>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">@cloudmonster</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>
+</section>
+
+<!-- 4 桌面小工具 -->
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">桌面小工具</div>
+  <h2>常駐桌面<br>隨時瞄一眼</h2>
+  <ul>
+    <li><span class="em">🎨</span><div>3 種質感主題<small>極光 / 終端綠 / 極簡白</small></div></li>
+    <li><span class="em">🖱️</span><div>可拖曳・自動記住位置</div></li>
+    <li><span class="em">🔄</span><div>每 5 分鐘自動更新</div></li>
+  </ul>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">@cloudmonster</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>
+</section>
+
+<!-- 5 優點 -->
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">為什麼好用</div>
+  <h2>優點</h2>
+  <ul>
+    <li><span class="em">🔒</span><div>完全離線，資料不上傳、不外流</div></li>
+    <li><span class="em">⚡</span><div>零安裝門檻，有 Python 就能跑</div></li>
+    <li><span class="em">🆓</span><div>開源免費（MIT），歡迎拿去改</div></li>
+    <li><span class="em">🧠</span><div>補足官方 Usage 看不到的分析</div></li>
+  </ul>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">@cloudmonster</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div></div>
+</section>
+
+<!-- 6 下載&使用 -->
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">怎麼下載 & 使用</div>
+  <h2>三步驟搞定</h2>
+  <ul style="gap:44px;margin-top:40px">
+    <li style="align-items:center"><span class="num">1</span><div>到 GitHub 下載<small>搜尋 claude-usage-dashboard</small></div></li>
+    <li style="align-items:center"><span class="num">2</span><div>終端機跑 <code>python3 generate.py</code></div></li>
+    <li style="align-items:center"><span class="num">3</span><div>面板自動打開 ✨<small>Mac 直接雙擊 .command 也行</small></div></li>
+  </ul>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">@cloudmonster</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot on"></span><span class="dot"></span></div></div>
+</section>
+
+<!-- 7 CTA -->
+<section class="slide" style="align-items:flex-start;justify-content:center">
+  <div class="logo">📊</div>
+  <h1 style="margin-top:50px">拿去用吧 🙌</h1>
+  <div class="lead" style="margin-top:36px">搜尋 GitHub：<br><span style="color:var(--acc2);font-weight:700">claude-usage-dashboard</span><br><br>連結放在 bio 🔗<br>用 Claude / Claude Code 的朋友應該會需要</div>
+  <div class="spacer"></div>
+  <div class="foot"><span class="gh">@cloudmonster · 開源免費</span><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot on"></span></div></div>
+</section>
+
+</body>
+</html>
