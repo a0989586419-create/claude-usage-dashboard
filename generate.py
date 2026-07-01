@@ -95,8 +95,9 @@ def decode_project(dirname: str) -> str:
     return parts[-1] if parts else dirname
 
 
-def load_official_usage(max_age=1800):
-    """讀 sync_official_usage.py 寫的官方用量快取（新於 max_age 秒才用）。不碰 token。"""
+def load_official_usage(max_age=10800):
+    """讀 sync_official_usage.py 寫的官方用量快取（新於 max_age 秒才用，預設 3 小時）。
+    容忍度放寬：同步暫時斷線時，寧可顯示稍舊的官方數字，也不要退回誤導的估算。不碰 token。"""
     p = os.path.join(HOME, ".claude-usage-official.json")
     try:
         c = json.load(open(p, encoding="utf-8"))

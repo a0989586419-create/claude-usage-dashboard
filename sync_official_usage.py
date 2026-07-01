@@ -29,6 +29,11 @@ USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 MIN_INTERVAL = 175   # 秒；避免打太兇被限流
 
 
+# User-Agent 版本：寫死即可（端點只在意「claude-code/x.y.z」這個格式，非精確版本）。
+# 不呼叫 claude 指令 → LaunchAgent 精簡 PATH 也不會崩。要更新版本改這行就好。
+CC_VERSION = "2.1.177"
+
+
 def sh(a):
     try:
         return subprocess.run(a, capture_output=True, text=True, timeout=15)
@@ -39,16 +44,7 @@ def sh(a):
 
 
 def ua():
-    # LaunchAgent 的 PATH 很精簡，claude 常不在裡面 → 逐一嘗試常見路徑，都找不到就用預設版本
-    cands = ["claude",
-             os.path.expanduser("~/.claude/local/claude"),
-             "/usr/local/bin/claude", "/opt/homebrew/bin/claude"]
-    for c in cands:
-        v = sh([c, "--version"]).stdout
-        m = re.search(r"\d+\.\d+\.\d+", v)
-        if m:
-            return f"claude-code/{m.group(0)}"
-    return "claude-code/2.1.177"
+    return f"claude-code/{CC_VERSION}"
 
 
 def read_cred():
