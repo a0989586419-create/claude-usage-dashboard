@@ -875,12 +875,17 @@ def oneline(d):
 def json_output(d):
     """精簡 JSON（給桌面 widget / 其他程式用）。"""
     b, w = d["block"], d["week_block"]
+    # 估算時封頂 100%（跟面板一致，避免 widget 顯示 >100%）
+    bp = b["pct"] if b.get("official") else min(b["pct"], 100)
+    wp = w["pct"] if w.get("official") else min(w["pct"], 100)
     print(json.dumps({
         "plan": d.get("plan_name", ""),
         "generated_at": d["generated_at"],
-        "block": {"pct": b["pct"], "used": b["used_cost"], "limit": b["limit"],
+        "block": {"pct": bp, "official": bool(b.get("official")),
+                  "used": b["used_cost"], "limit": b["limit"],
                   "remain": b["remain"], "reset_in": b["reset_in"]},
-        "week": {"pct": w["pct"], "used": w["used_cost"], "limit": w["limit"],
+        "week": {"pct": wp, "official": bool(w.get("official")),
+                 "used": w["used_cost"], "limit": w["limit"],
                  "remain": w["remain"], "reset_days": w["reset_days"]},
         "today": d["today"]["cost"], "total": d["totals"]["cost"],
         "tokens": d["totals"]["tokens"],
