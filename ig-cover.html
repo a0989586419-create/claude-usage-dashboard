@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>IG 單張 · Claude 用量監控</title>
+<style>
+  :root{
+    --bg:#0b0e14; --line:#26333f; --txt:#e6edf3; --mut:#8b98a9; --dim:#5b6675;
+    --acc:#ff8c42; --acc2:#ffb37a; --grn:#3fb68b; --blu:#5aa9e6; --pnk:#ff6b9d; --pur:#9b8cff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#05070b;display:flex;justify-content:center;padding:30px;
+    font-family:-apple-system,"PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif}
+  .slide{
+    width:1080px;height:1350px;flex:none;position:relative;overflow:hidden;color:var(--txt);
+    background:
+      radial-gradient(760px 520px at 12% 6%, rgba(255,140,66,.15), transparent 60%),
+      radial-gradient(820px 620px at 94% 98%, rgba(155,140,255,.15), transparent 60%),
+      radial-gradient(1100px 700px at 82% -12%, #1c2335 0%, #0b0e14 56%), var(--bg);
+    padding:56px 68px 52px;display:flex;flex-direction:column;border-radius:10px}
+  .bar{height:8px;width:128px;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--pnk),var(--pur))}
+  .eyebrow{color:var(--acc2);font-size:29px;font-weight:750;letter-spacing:3px;margin-top:24px}
+  h1{font-size:72px;font-weight:850;line-height:1.08;letter-spacing:1px;margin-top:12px}
+  .grad{background:linear-gradient(115deg,var(--acc2),var(--pnk));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--mut);font-size:31px;font-weight:500;margin-top:16px}
+
+  /* 產品卡 */
+  .demo{margin-top:26px;background:linear-gradient(155deg,#16212b,#131a24);border:1px solid var(--line);
+    border-radius:26px;padding:28px 34px;box-shadow:0 26px 60px rgba(0,0,0,.4)}
+  .demo .h{display:flex;justify-content:space-between;align-items:center}
+  .demo .h .t{font-size:31px;font-weight:750}
+  .badge{font-size:22px;font-weight:750;color:#04150b;background:linear-gradient(135deg,#7ee0a8,#3fb68b);padding:6px 18px;border-radius:30px}
+  .gwrap{display:flex;align-items:center;gap:30px;margin-top:22px}
+  .gwrap .meta .k{font-size:27px;color:var(--mut)}
+  .gwrap .meta .v{font-size:29px;font-weight:700;margin-top:4px}
+  .wk{flex:1}
+  .wk .row{display:flex;justify-content:space-between;font-size:27px;color:var(--mut)}
+  .wk .track{height:18px;background:#0c1219;border-radius:10px;margin-top:12px;overflow:hidden}
+  .wk .fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#3fb68b,#5aa9e6)}
+
+  .sec{margin-top:22px}
+  .sec .lab{font-size:26px;color:var(--dim);font-weight:700;letter-spacing:1px;margin-bottom:13px}
+  .feat{display:grid;grid-template-columns:1fr 1fr;gap:13px 28px}
+  .feat .f{font-size:31px;font-weight:600;display:flex;gap:16px;align-items:center;line-height:1.25}
+  .feat .f .e{font-size:34px;flex:none}
+  .feat .f small{display:block;font-size:22px;color:var(--mut);font-weight:500;margin-top:2px}
+
+  .chips{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .chip{font-size:27px;font-weight:650;padding:12px 22px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+
+  .spacer{flex:1}
+  .cta{margin-top:18px;background:linear-gradient(135deg,rgba(255,140,66,.16),rgba(255,107,157,.14));
+    border:1px solid rgba(255,140,66,.36);border-radius:20px;padding:22px 30px}
+  .cta .how{font-size:30px;font-weight:650;line-height:1.5}
+  .cta .how b{color:var(--acc2)}
+  .cta .repo{font-size:29px;color:var(--txt);font-weight:750;margin-top:14px;display:flex;align-items:center;gap:12px}
+  .cta .repo .gh{color:var(--mut);font-weight:600}
+  code{font-family:"SF Mono",Menlo,monospace;background:#0e141d;border:1px solid var(--line);padding:5px 14px;border-radius:10px;font-size:26px;color:var(--acc2)}
+</style>
+</head>
+<body>
+<section class="slide">
+  <div class="bar"></div>
+  <div class="eyebrow">CLAUDE CODE · 用量監控</div>
+  <h1>把 Claude 用量<br><span class="grad">看得一清二楚</span></h1>
+  <div class="sub">5 小時 / 本週用多少、還剩多少，一眼看完 🎯</div>
+
+  <div class="demo">
+    <div class="h"><span class="t">⛁ 用量佔比</span><span class="badge">官方即時</span></div>
+    <div class="gwrap">
+      <svg width="132" height="132" viewBox="0 0 132 132" style="flex:none">
+        <circle cx="66" cy="66" r="50" fill="none" stroke="#0c1219" stroke-width="15"/>
+        <circle cx="66" cy="66" r="50" fill="none" stroke="#3fb68b" stroke-width="15" stroke-linecap="round"
+          stroke-dasharray="314.2" stroke-dashoffset="216.8" transform="rotate(-90 66 66)"/>
+        <text x="66" y="72" text-anchor="middle" fill="#e6edf3" font-size="37" font-weight="780">31%</text>
+      </svg>
+      <div class="meta"><div class="k">5 小時視窗</div><div class="v">約 3 小時後重置</div></div>
+      <div class="wk">
+        <div class="row"><span>本週用量</span><span><b style="color:#3fb68b">4%</b></span></div>
+        <div class="track"><div class="fill" style="width:4%;min-width:12px"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="lab">功能</div>
+    <div class="feat">
+      <div class="f"><span class="e">🟢</span><div>5h / 本週佔比<small>可接官方即時，數字與官方一致</small></div></div>
+      <div class="f"><span class="e">📈</span><div>每日 token 趨勢</div></div>
+      <div class="f"><span class="e">🧩</span><div>各模型・專案用量排行</div></div>
+      <div class="f"><span class="e">🕒</span><div>活躍時段熱力圖</div></div>
+      <div class="f"><span class="e">🔔</span><div>撞上限自動通知</div></div>
+      <div class="f"><span class="e">🖥️</span><div>桌面小工具<small>3 主題・可拖曳（macOS）</small></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="lab">特點</div>
+    <div class="chips">
+      <div class="chip">🪫 零 token 消耗</div>
+      <div class="chip">🔒 資料留本機</div>
+      <div class="chip">🆓 開源免費 MIT</div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="cta">
+    <div class="how">怎麼用：GitHub 搜 <code>claude-usage-dashboard</code><br>→ 跑 <code>python3 generate.py</code> → <b>面板自動打開</b></div>
+  </div>
+</section>
+</body>
+</html>

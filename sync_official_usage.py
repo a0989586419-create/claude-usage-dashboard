@@ -21,6 +21,8 @@ import json, os, sys, time, subprocess, getpass, urllib.request, urllib.error, r
 
 HOME = os.path.expanduser("~")
 CACHE = os.path.join(HOME, ".claude-usage-official.json")
+STATE = os.path.join(HOME, ".claude-usage-sync-state.json")
+REFRESH_COOLDOWN = 7200  # 刷新被 429 後，冷卻 2 小時再試（避免狂刷把限流一直撐著）
 SVC = "Claude Code-credentials"
 ACCT = os.environ.get("CLAUDE_KEYCHAIN_ACCT", getpass.getuser())
 CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
@@ -96,9 +98,28 @@ def main():
     # token 快過期（<2 分）才刷新
     need = o.get("expiresAt", 0) / 1000 - time.time() < 120
     if need:
+        try:
+            st = json.load(open(STATE))
+        except Exception:
+            st = {}
+        cd = st.get("refresh_cooldown_until", 0)
+        if time.time() < cd:
+            print("刷新冷卻中（避免一直被限流），到",
+                  time.strftime("%H:%M", time.localtime(cd)), "才再試 · 目前顯示估算")
+            return
         tok, err = refresh(o, UA)
         if err:
-            print("refresh-fail", *err, "→ 保留舊快取，稍後再試"); return
+            if err[0] == 429:  # 被限流 → 進入冷卻，停止狂刷
+                st["refresh_cooldown_until"] = time.time() + REFRESH_COOLDOWN
+                json.dump(st, open(STATE, "w"))
+                print(f"refresh 429 → 冷卻 {REFRESH_COOLDOWN//3600}h 停止狂刷。"
+                      f"要立刻恢復官方數字：Claude Code 打 /login 重登")
+            else:
+                print("refresh-fail", *err, "→ 保留舊快取")
+            return
+        # 成功 → 清掉冷卻
+        st.pop("refresh_cooldown_until", None)
+        json.dump(st, open(STATE, "w"))
         o = dict(o)
         o["accessToken"] = tok["access_token"]
         o["refreshToken"] = tok.get("refresh_token", o["refreshToken"])

@@ -289,6 +289,9 @@ def build_data():
          "tokens": int(v["tokens"]), "messages": int(v["messages"])}
         for k, v in raw["by_project"].items()
     ], key=lambda x: -x["cost"])
+    if "--anon" in sys.argv:  # 打碼專案名（截圖分享用）：專案A / 專案B / …
+        for i, p in enumerate(by_project):
+            p["project"] = f"專案{chr(65 + i)}" if i < 26 else f"專案{i + 1}"
 
     # 今日 / 本週 / 本月
     now = datetime.now().astimezone()
@@ -617,7 +620,7 @@ const T = D.totals;
 const kpis = [
   {cls:'hero', lab:'🔢 累計用量', val:fmtN(T.tokens), hint:T.messages.toLocaleString()+' 則 AI 回應　·　≈ 訂閱省下 '+fmtUSD(T.cost)+' 等值'},
   {lab:'📅 今日用量', val:fmtN(D.today.tokens), hint:D.today.messages+' 則 · '+fmtUSD(D.today.cost)+' 等值'},
-  {lab:'📆 本週佔比', val:D.week_block.pct.toFixed(0)+'%', hint:fmtN(D.week.tokens)+' tokens · 約 '+D.week_block.reset_days+' 天後重置'},
+  {lab:'📆 本週佔比', val:(D.week_block.official?D.week_block.pct:Math.min(D.week_block.pct,100)).toFixed(0)+'%', hint:(D.week_block.official?'官方即時':'⚠️ 估算')+' · 約 '+D.week_block.reset_days+' 天後重置'},
   {lab:'🔥 活躍天數', val:T.active_days+' 天', hint:T.projects+' 專案 · '+T.sessions+' session'},
 ];
 $('kpis').innerHTML = kpis.map(k=>`
@@ -663,8 +666,8 @@ function ringSVG(pct, sizeR, official){
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="13"
       stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"
       transform="rotate(-90 ${cx} ${cy})"/>
-    <text x="${cx}" y="${cy-2}" text-anchor="middle" fill="#e6edf3" font-size="26" font-weight="760">${pct.toFixed(0)}%</text>
-    <text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#8b98a9" font-size="10.5">${official?'官方即時':'已用佔比'}</text></svg>`;
+    <text x="${cx}" y="${cy-2}" text-anchor="middle" fill="#e6edf3" font-size="26" font-weight="760">${(official?pct:Math.min(pct,100)).toFixed(0)}%</text>
+    <text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#8b98a9" font-size="10.5">${official?'官方即時':'估算'}</text></svg>`;
 }
 (function(){
   const b=D.block, w=D.week_block, el=$('block');
@@ -679,7 +682,7 @@ function ringSVG(pct, sizeR, official){
       <div style="flex:1;min-width:0">
         <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'已結束'}　${b.start} – ${b.end}　·　約 ${b.reset_in} 小時後重置${b.official?badge:''}</div>
         <div class="gnum"><span class="now">${fmtUSD(b.used_cost)}</span><span class="sep"> / </span><span class="lim">${fmtUSD(b.limit)}</span></div>
-        <div class="glab">${b.official?'佔比為官方即時 · 金額為本機等值估算':('現在用量 / '+srcTxt+'基準　·　還能用 <b>'+fmtUSD(b.remain)+'</b>')}</div>
+        <div class="glab">${b.official?'佔比為官方即時 · 金額為本機等值估算':'⚠️ 估算（非官方，可能不準）· 在 Claude Code 打 /login 後會自動同步官方數字'}</div>
       </div>
     </div>
     <div class="block-grid" style="margin-top:14px">
@@ -691,11 +694,11 @@ function ringSVG(pct, sizeR, official){
     <div class="wk">
       <div class="wk-head">
         <span class="t">📆 本週用量${w.official?badge:''}</span>
-        <span class="r">約 ${w.reset_days} 天後重置</span>
+        <span class="r">${w.official?'':'估算 · '}約 ${w.reset_days} 天後重置</span>
       </div>
       <div class="wk-mid">
         <div class="wk-bar"><div class="wk-fill" style="width:${Math.min(w.pct,100)}%;background:linear-gradient(90deg,${gaugeColor(w.pct)},${gaugeColor(w.pct)}cc)"></div></div>
-        <div class="wk-pct" style="color:${gaugeColor(w.pct)}">${w.pct.toFixed(0)}%</div>
+        <div class="wk-pct" style="color:${gaugeColor(w.pct)}">${(w.official?w.pct:Math.min(w.pct,100)).toFixed(0)}%</div>
       </div>
       <div class="wk-foot">
         <span><b style="color:var(--acc2)">${fmtUSD(w.used_cost)}</b> / ${fmtUSD(w.limit)} ${wkSrc}</span>
