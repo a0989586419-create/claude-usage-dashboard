@@ -117,6 +117,15 @@ def _hours_until(iso):
         return None
 
 
+def _fmt_reset(iso, with_date=False):
+    """官方 resets_at → 本機時刻字串（5h 用 HH:MM；週用 MM/DD HH:MM）。"""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone()
+        return dt.strftime("%m/%d %H:%M") if with_date else dt.strftime("%H:%M")
+    except Exception:
+        return ""
+
+
 def local_dt(ts: str):
     """ISO8601(Z) → 本機時區 datetime。"""
     try:
@@ -359,7 +368,10 @@ def build_data():
 
     # ── 官方真實用量（若有快取則覆蓋估算的佔比）──
     official = load_official_usage()
+    official_at = ""
     if official:
+        if official.get("fetched_at"):
+            official_at = datetime.fromtimestamp(official["fetched_at"]).astimezone().strftime("%H:%M")
         fh = official.get("five_hour") or {}
         sd = official.get("seven_day") or {}
         if fh.get("utilization") is not None:
@@ -368,12 +380,14 @@ def build_data():
             h = _hours_until(fh.get("resets_at", ""))
             if h is not None:
                 block["reset_in"] = round(h, 1)
+            block["reset_at"] = _fmt_reset(fh.get("resets_at", ""), False)
         if sd.get("utilization") is not None:
             week_block["pct"] = round(sd["utilization"], 1)
             week_block["official"] = True
             h = _hours_until(sd.get("resets_at", ""))
             if h is not None:
                 week_block["reset_days"] = round(h / 24, 1)
+            week_block["reset_at"] = _fmt_reset(sd.get("resets_at", ""), True)
 
     days_active = len(by_day)
     first_day = by_day[0]["date"] if by_day else "-"
@@ -382,6 +396,7 @@ def build_data():
     return {
         "generated_at": now.strftime("%Y-%m-%d %H:%M"),
         "plan_name": PLAN_NAME,
+        "official_at": official_at,
         "totals": {
             "cost": round(t["cost"], 2),
             "input": int(t["input"]), "output": int(t["output"]),
@@ -680,9 +695,9 @@ function ringSVG(pct, sizeR, official){
     <div style="display:flex;gap:16px;align-items:center">
       ${ringSVG(b.pct, 50, b.official)}
       <div style="flex:1;min-width:0">
-        <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'已結束'}　${b.start} – ${b.end}　·　約 ${b.reset_in} 小時後重置${b.official?badge:''}</div>
+        <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'空閒'}　·　約 ${b.reset_in} 小時後重置${b.reset_at?'（'+b.reset_at+'）':''}${b.official?badge:''}</div>
         <div class="gnum"><span class="now">${fmtUSD(b.used_cost)}</span><span class="sep"> / </span><span class="lim">${fmtUSD(b.limit)}</span></div>
-        <div class="glab">${b.official?'佔比為官方即時 · 金額為本機等值估算':'⚠️ 估算（非官方，可能不準）· 在 Claude Code 打 /login 後會自動同步官方數字'}</div>
+        <div class="glab">${b.official?('佔比為官方即時'+(D.official_at?'（'+D.official_at+' 更新）':'')+' · 金額為本機等值估算'):'⚠️ 估算（非官方，可能不準）· 在 Claude Code 打 /login 後會自動同步官方數字'}</div>
       </div>
     </div>
     <div class="block-grid" style="margin-top:14px">
@@ -694,7 +709,7 @@ function ringSVG(pct, sizeR, official){
     <div class="wk">
       <div class="wk-head">
         <span class="t">📆 本週用量${w.official?badge:''}</span>
-        <span class="r">${w.official?'':'估算 · '}約 ${w.reset_days} 天後重置</span>
+        <span class="r">${w.official?'':'估算 · '}約 ${w.reset_days} 天後重置${w.reset_at?'（'+w.reset_at+'）':''}</span>
       </div>
       <div class="wk-mid">
         <div class="wk-bar"><div class="wk-fill" style="width:${Math.min(w.pct,100)}%;background:linear-gradient(90deg,${gaugeColor(w.pct)},${gaugeColor(w.pct)}cc)"></div></div>

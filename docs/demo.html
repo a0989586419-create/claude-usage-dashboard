@@ -260,9 +260,9 @@ function ringSVG(pct, sizeR, official){
     <div style="display:flex;gap:16px;align-items:center">
       ${ringSVG(b.pct, 50, b.official)}
       <div style="flex:1;min-width:0">
-        <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'已結束'}　${b.start} – ${b.end}　·　約 ${b.reset_in} 小時後重置${b.official?badge:''}</div>
+        <div class="status"><span class="dot ${b.active?'on':''}"></span>${b.active?'進行中':'空閒'}　·　約 ${b.reset_in} 小時後重置${b.reset_at?'（'+b.reset_at+'）':''}${b.official?badge:''}</div>
         <div class="gnum"><span class="now">${fmtUSD(b.used_cost)}</span><span class="sep"> / </span><span class="lim">${fmtUSD(b.limit)}</span></div>
-        <div class="glab">${b.official?'佔比為官方即時 · 金額為本機等值估算':'⚠️ 估算（非官方，可能不準）· 在 Claude Code 打 /login 後會自動同步官方數字'}</div>
+        <div class="glab">${b.official?('佔比為官方即時'+(D.official_at?'（'+D.official_at+' 更新）':'')+' · 金額為本機等值估算'):'⚠️ 估算（非官方，可能不準）· 在 Claude Code 打 /login 後會自動同步官方數字'}</div>
       </div>
     </div>
     <div class="block-grid" style="margin-top:14px">
@@ -274,7 +274,7 @@ function ringSVG(pct, sizeR, official){
     <div class="wk">
       <div class="wk-head">
         <span class="t">📆 本週用量${w.official?badge:''}</span>
-        <span class="r">${w.official?'':'估算 · '}約 ${w.reset_days} 天後重置</span>
+        <span class="r">${w.official?'':'估算 · '}約 ${w.reset_days} 天後重置${w.reset_at?'（'+w.reset_at+'）':''}</span>
       </div>
       <div class="wk-mid">
         <div class="wk-bar"><div class="wk-fill" style="width:${Math.min(w.pct,100)}%;background:linear-gradient(90deg,${gaugeColor(w.pct)},${gaugeColor(w.pct)}cc)"></div></div>
