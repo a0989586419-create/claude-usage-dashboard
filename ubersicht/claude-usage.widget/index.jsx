@@ -167,7 +167,15 @@ export const render = ({ output }) => {
         ...pad, paddingTop: 17, paddingBottom: 5, cursor: "move",
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span style={{ fontSize: 15.5, fontWeight: 750, letterSpacing: 0.2 }}>⛁ Claude 用量</span>
+        <span style={{ fontSize: 15.5, fontWeight: 750, letterSpacing: 0.2 }}>⛁ Claude 用量
+          <span style={{
+            fontSize: 10, fontWeight: 700, marginLeft: 7, padding: "2px 8px", borderRadius: 20,
+            color: d.block.official ? "#04150b" : "#3a2e0a",
+            background: d.block.official
+              ? "linear-gradient(135deg,#7ee0a8,#3fb68b)"
+              : "linear-gradient(135deg,#f5d06b,#e0a53a)",
+          }}>{d.block.official ? "官方即時" : "估算"}</span>
+        </span>
         <span style={{
           fontSize: 11, fontWeight: 700, color: T.pillText, padding: "3px 11px",
           borderRadius: 20, background: T.pill,
@@ -175,7 +183,7 @@ export const render = ({ output }) => {
       </div>
       <div style={{ ...pad, display: "flex", gap: 10, marginTop: 10 }}>
         <Ring pct={d.block.pct} label="5 小時視窗" used={d.block.used} limit={d.block.limit}
-          sub={`${d.block.reset_in}h 後重置`} />
+          sub={d.block.reset_at ? `${d.block.reset_at} 重置` : `${d.block.reset_in}h 後重置`} />
         <Ring pct={d.week.pct} label="本週用量" used={d.week.used} limit={d.week.limit}
           sub={`${d.week.reset_days}d 後重置`} />
       </div>

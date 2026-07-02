@@ -108,6 +108,17 @@ def load_official_usage(max_age=10800):
         return None
 
 
+def load_history(hours=72):
+    """讀官方用量歷史（趨勢圖用）。不碰 token。"""
+    p = os.path.join(HOME, ".claude-usage-history.json")
+    try:
+        h = json.load(open(p, encoding="utf-8"))
+        cut = time.time() - hours * 3600
+        return [x for x in h if x.get("ts", 0) >= cut]
+    except Exception:
+        return []
+
+
 def _hours_until(iso):
     """ISO8601(UTC) → 距現在幾小時（浮點）。"""
     try:
@@ -416,6 +427,7 @@ def build_data():
         "month": sum_since(month_start),
         "block": block,
         "week_block": week_block,
+        "history": load_history(72),
         "by_day": by_day,
         "by_model": by_model,
         "by_project": by_project,
@@ -438,6 +450,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="60">
 <title>AI 用量監控 · Claude Code</title>
 <style>
   :root{
@@ -584,6 +597,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <div class="desc">每根 = 當天用掉的 token。越高代表那天越操。</div>
       <div id="dailyChart"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h3>官方用量趨勢 <span class="pill">近 72 小時 · 官方 %</span></h3>
+    <div class="desc">每次同步記一筆。5 小時視窗會週期性歸零（鋸齒），本週線持續往上爬到重置。</div>
+    <div id="trend"></div>
   </div>
 
   <div class="row c3">
@@ -806,6 +825,21 @@ function ringSVG(pct, sizeR, official){
     <div class="tool"><div class="tn">${c.n} ${c.tag}</div><div class="ts">${c.s}</div></div>`).join('')+`</div>`;
 })();
 
+// ── 官方用量趨勢 ──
+(function(){
+  const H=D.history||[]; const el=$('trend');
+  if(H.length<2){ el.innerHTML='<div class="desc">資料累積中…每 20 分自動同步一筆，跑幾次後這裡就會出現曲線。</div>'; return; }
+  const W=1080,Hh=210,pl=38,pr=14,pt=12,pb=22;
+  const t0=H[0].ts, t1=H[H.length-1].ts||t0+1, iw=W-pl-pr, ih=Hh-pt-pb;
+  const X=t=>pl+(t-t0)/((t1-t0)||1)*iw, Y=v=>pt+ih*(1-Math.min(v,100)/100);
+  let grid='';
+  for(let g=0;g<=4;g++){ const yy=pt+ih*g/4, v=100*(1-g/4);
+    grid+=`<line x1="${pl}" y1="${yy}" x2="${W-pr}" y2="${yy}" stroke="#1c2632"/><text x="${pl-6}" y="${yy+3}" text-anchor="end" fill="#5b6675" font-size="10">${v}%</text>`; }
+  const path=(k,c)=>{let d='';H.forEach(p=>{const v=p[k]; if(v==null)return; d+=(d?'L':'M')+X(p.ts).toFixed(1)+' '+Y(v).toFixed(1)+' ';}); return `<path d="${d}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"/>`;};
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${Hh}">${grid}${path('sd','#5aa9e6')}${path('fh','#39d353')}</svg>
+    <div class="legend"><span><i style="background:#39d353"></i>5 小時視窗</span><span><i style="background:#5aa9e6"></i>本週</span></div>`;
+})();
+
 $('foot').innerHTML = `成本為「等值 API 計價」估算（Opus $5/$25、Sonnet $3/$15、Haiku $1/$5 每百萬 token；快取寫入 1.25×、讀取 0.1×）。<br>
 訂閱制（Max/Pro）實際不照此收費，此數字代表你從訂閱「賺到」的等值價值。<b>想看官方精準佔比：Claude 設定 → Usage。</b><br>
 資料來源：~/.claude/projects · 重新整理請再跑一次 generate.py。`;
@@ -897,11 +931,12 @@ def json_output(d):
         "plan": d.get("plan_name", ""),
         "generated_at": d["generated_at"],
         "block": {"pct": bp, "official": bool(b.get("official")),
-                  "used": b["used_cost"], "limit": b["limit"],
-                  "remain": b["remain"], "reset_in": b["reset_in"]},
+                  "used": b["used_cost"], "limit": b["limit"], "remain": b["remain"],
+                  "reset_in": b["reset_in"], "reset_at": b.get("reset_at", "")},
         "week": {"pct": wp, "official": bool(w.get("official")),
-                 "used": w["used_cost"], "limit": w["limit"],
-                 "remain": w["remain"], "reset_days": w["reset_days"]},
+                 "used": w["used_cost"], "limit": w["limit"], "remain": w["remain"],
+                 "reset_days": w["reset_days"], "reset_at": w.get("reset_at", "")},
+        "official_at": d.get("official_at", ""),
         "today": d["today"]["cost"], "total": d["totals"]["cost"],
         "tokens": d["totals"]["tokens"],
         "spark": [round(x["cost"], 2) for x in d["by_day"][-14:]],
@@ -941,13 +976,17 @@ def do_notify(d, threshold):
     """用量超過門檻就跳桌面通知（mac: osascript / Linux: notify-send）。"""
     import subprocess, platform
     b, w = d["block"], d["week_block"]
+    # 只用官方數字判斷（避免估算誤報）
+    if not b.get("official") and not w.get("official"):
+        print("官方數字不可用（估算中），跳過通知避免誤報。/login 後恢復官方即可提醒")
+        return
     alerts = []
-    if b["pct"] >= threshold:
+    if b.get("official") and b["pct"] >= threshold:
         alerts.append(f"5 小時視窗已用 {b['pct']:.0f}%")
-    if w["pct"] >= threshold:
+    if w.get("official") and w["pct"] >= threshold:
         alerts.append(f"本週已用 {w['pct']:.0f}%")
     if not alerts:
-        print(f"用量正常（5h {b['pct']:.0f}% / 週 {w['pct']:.0f}%），未達 {threshold}% 門檻")
+        print(f"用量正常（官方 5h {b['pct']:.0f}% / 週 {w['pct']:.0f}%），未達 {threshold}% 門檻")
         return
     msg, title = " · ".join(alerts), "⚠️ Claude 用量提醒"
     sysname = platform.system()

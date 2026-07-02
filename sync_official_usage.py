@@ -136,12 +136,32 @@ def main():
     if err:
         print("usage-fail", *err); return
 
-    out = {"fetched_at": int(time.time()), **usage}
+    now_ts = int(time.time())
+    out = {"fetched_at": now_ts, **usage}
     json.dump(out, open(CACHE, "w"), ensure_ascii=False)
     os.chmod(CACHE, 0o600)
     fh = (usage.get("five_hour") or {}).get("utilization")
     sd = (usage.get("seven_day") or {}).get("utilization")
+
+    # 記一筆歷史（給趨勢圖用）；同一分鐘內不重複、上限 1500 筆
+    HIST = os.path.join(HOME, ".claude-usage-history.json")
+    try:
+        hist = json.load(open(HIST))
+    except Exception:
+        hist = []
+    if not hist or now_ts - hist[-1].get("ts", 0) >= 55:
+        hist.append({"ts": now_ts, "fh": fh, "sd": sd})
+        hist = hist[-1500:]
+        json.dump(hist, open(HIST, "w"))
     print(f"OK 官方用量：5h {fh}% · 週 {sd}%  → 已寫入 {CACHE}")
+
+    # 順手重生面板（開著的頁面靠 meta-refresh 60s 就會看到最新官方數字）
+    try:
+        gen = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generate.py")
+        subprocess.run([sys.executable or "python3", gen, "--no-open"],
+                       capture_output=True, timeout=90)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
